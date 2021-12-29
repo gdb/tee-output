@@ -16,12 +16,13 @@ def main():
         os._exit(0)
 
     signal.signal(signal.SIGINT, sigint)
+    signal.signal(signal.SIGCHLD, sigint)
     if len(sys.argv) <= 1:
         sys.stderr.write(f"Usage: {sys.argv[0]} <subcommand to run>\n")
         return 1
     child = subprocess.Popen(sys.argv[1:], close_fds=False)
     while True:
-        if os.getpid() == 1:
+        if os.getppid() == 1:
             break
         time.sleep(1)
     child.kill()
