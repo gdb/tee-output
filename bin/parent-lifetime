@@ -5,26 +5,35 @@ import signal
 import sys
 import time
 
+poll_timeout=1
+death_timeout=10
 
 # On Linux, could also use prctl to get a notification on parent death
 def main():
+    if len(sys.argv) <= 1:
+        sys.stderr.write(f"Usage: {sys.argv[0]} <subcommand to run>\n")
+        return 1
+
+    child = subprocess.Popen(sys.argv[1:], close_fds=False)
     def sigint(sig, frame):
-        if child is None:
-            return
         child.kill()
         child.wait()
         os._exit(0)
 
     signal.signal(signal.SIGINT, sigint)
-    signal.signal(signal.SIGCHLD, sigint)
-    if len(sys.argv) <= 1:
-        sys.stderr.write(f"Usage: {sys.argv[0]} <subcommand to run>\n")
-        return 1
-    child = subprocess.Popen(sys.argv[1:], close_fds=False)
     while True:
-        if os.getppid() == 1:
+        if child.poll() is not None:
+            return
+        elif os.getppid() == 1:
             break
-        time.sleep(1)
+        time.sleep(poll_timeout)
+
+    # Try to kill
+    child.terminate()
+    start = time.time()
+    while time.time() - start < death_timeout:
+        if child.poll() is not None:
+            return
     child.kill()
     child.wait()
     return 0
