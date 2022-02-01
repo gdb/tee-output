@@ -5,3 +5,6 @@ build:
 
 upload:
 	twine upload dist/*
+
+clean:
+	rm -rf dist/
