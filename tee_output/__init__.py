@@ -92,8 +92,9 @@ def _tee(src, to, stdout):
 
     for path in to:
         os.makedirs(os.path.dirname(path), exist_ok=True)
+
     proc = subprocess.Popen(
-        ["parent-lifetime", "tee", "-a"] + list(to),
+        ["parent-lifetime", "--term", "tee", "-a"] + list(to),
         stdin=r,
         start_new_session=True,
         stderr=subprocess.DEVNULL,
