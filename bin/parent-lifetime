@@ -46,14 +46,15 @@ def main():
         import ctypes
 
         def preexec_fn():
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
             PR_SET_PDEATHSIG = 1
             ctypes.cdll["libc.so.6"].prctl(PR_SET_PDEATHSIG, int(sig))
     else:
         def preexec_fn():
-            pass
+            signal.signal(signal.SIGINT, signal.SIG_DFL)
 
     child = subprocess.Popen(sys.argv[1:], close_fds=False, preexec_fn=preexec_fn)
-    close_fds()
+    close_fds(exclude={1, 2})
 
     def sigint(sig, frame):
         terminate(child)

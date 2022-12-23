@@ -1,5 +1,6 @@
 import fcntl
 import os
+import signal
 import struct
 import subprocess
 import sys
@@ -37,21 +38,28 @@ class Tee:
         self.stderr_pipe_proc = _tee(self.orig_stderr, stderr, stdout=self.orig_stdout)
         self.stderr = stderr
 
+        self._drain(stdout_pipe_proc=old_stdout_pipe_proc, stderr_pipe_proc=old_stderr_pipe_proc)
         self.resume()
 
+        return self
+
+    def close(self):
+        self.pause()
+        self._drain(self.stdout_pipe_proc, self.stderr_pipe_proc)
+
+    def _drain(self, stdout_pipe_proc, stderr_pipe_proc):
         # One sharp edge is that if you've spawned a subprocess with
         # the redirected stdout/stderr, the tee processes will not
         # die. In that case maybe we should set a timeout, or just
         # leak them? Not sure.
-        if old_stdout_pipe_proc is not None:
-            pipe, proc = old_stdout_pipe_proc
+        if stdout_pipe_proc is not None:
+            pipe, proc = stdout_pipe_proc
             pipe.close()
             proc.wait()
-        if old_stderr_pipe_proc is not None:
-            pipe, proc = old_stderr_pipe_proc
+        if stderr_pipe_proc is not None:
+            pipe, proc = stderr_pipe_proc
             pipe.close()
             proc.wait()
-        return self
 
     def resume(self):
         os.dup2(self.stdout_pipe_proc[0].fileno(), sys.stdout.fileno())
@@ -82,22 +90,25 @@ def _tee(src, to, stdout):
         fcntl.ioctl(r, termios.TIOCSWINSZ, packed)
 
         def set_ctty():
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             w.close()
             fcntl.ioctl(r, termios.TIOCSCTTY, 0)
 
     else:
 
         def set_ctty():
+            signal.signal(signal.SIGINT, signal.SIG_IGN)
             w.close()
 
     for path in to:
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
+    # TODO: fast exit
     proc = subprocess.Popen(
         ["parent-lifetime", "--term", "tee", "-a"] + list(to),
         stdin=r,
         start_new_session=True,
-        stderr=subprocess.DEVNULL,
+        # stderr=subprocess.DEVNULL,
         stdout=stdout,
         preexec_fn=set_ctty,
     )
