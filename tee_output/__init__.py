@@ -85,9 +85,10 @@ def _tee(src, to, stdout):
     if src.isatty():
         tty.setraw(r)
 
-        # Copy window size
-        packed = fcntl.ioctl(sys.stdin, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0))
-        fcntl.ioctl(r, termios.TIOCSWINSZ, packed)
+        if sys.stdin.isatty():
+            # Copy window size
+            packed = fcntl.ioctl(sys.stdin, termios.TIOCGWINSZ, struct.pack("HHHH", 0, 0, 0, 0))
+            fcntl.ioctl(r, termios.TIOCSWINSZ, packed)
 
         def set_ctty():
             signal.signal(signal.SIGINT, signal.SIG_IGN)
