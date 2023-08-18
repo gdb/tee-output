@@ -55,10 +55,20 @@ class Tee:
         if stdout_pipe_proc is not None:
             pipe, proc = stdout_pipe_proc
             pipe.close()
+            try:
+                # TODO: replace tee with something that is guaranteed
+                # to flush on exit
+                os.kill(proc.pid, signal.SIGINT)
+            except ProcessLookupError:
+                pass
             proc.wait()
         if stderr_pipe_proc is not None:
             pipe, proc = stderr_pipe_proc
             pipe.close()
+            try:
+                os.kill(proc.pid, signal.SIGINT)
+            except ProcessLookupError:
+                pass
             proc.wait()
 
     def resume(self):
@@ -109,7 +119,7 @@ def _tee(src, to, stdout):
         ["parent-lifetime", "--term", "tee", "-a"] + list(to),
         stdin=r,
         start_new_session=True,
-        # stderr=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         stdout=stdout,
         preexec_fn=set_ctty,
     )
